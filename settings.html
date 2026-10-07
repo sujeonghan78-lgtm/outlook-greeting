@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=Edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>인사말 설정</title>
+  <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
+  <style>
+    body { font-family: "Segoe UI", "Malgun Gothic", sans-serif; font-size: 14px; margin: 16px; color: #222; }
+    h3 { margin: 0 0 8px; font-size: 16px; }
+    p.help { margin: 0 0 12px; color: #666; font-size: 12px; line-height: 1.5; }
+    textarea { width: 100%; box-sizing: border-box; height: 220px; padding: 8px; font: inherit; border: 1px solid #bbb; border-radius: 4px; resize: vertical; }
+    .btns { margin-top: 12px; display: flex; gap: 8px; }
+    button { padding: 7px 14px; font: inherit; border-radius: 4px; border: 1px solid #0f6cbd; cursor: pointer; }
+    #save { background: #0f6cbd; color: #fff; }
+    #reset { background: #fff; color: #0f6cbd; }
+    #msg { margin-top: 10px; font-size: 13px; min-height: 18px; }
+    .ok { color: #107c10; } .err { color: #c50f1f; }
+  </style>
+</head>
+<body>
+  <h3>인사말 설정</h3>
+  <p class="help">
+    새 메일 / 회신 / 전달 때 본문 맨 위에 들어갈 문구예요.<br>
+    메일 쓰듯이 입력하고 저장하면 다음 메일부터 적용돼요.<br>
+    <b>{이름}</b> 이라고 쓰면 내 아웃룩 이름으로 바뀌어요.
+  </p>
+  <textarea id="text" placeholder="불러오는 중..."></textarea>
+  <div class="btns">
+    <button id="save">저장</button>
+    <button id="reset">기본 문구로 되돌리기</button>
+  </div>
+  <div id="msg"></div>
+
+  <script>
+    var KEY = "greeting";
+    var FALLBACK = "수신 :\n발신 : {이름}\n\n연일 업무로 노고 많으십니다.\n\n감사합니다.";
+
+    function show(text, ok) {
+      var m = document.getElementById("msg");
+      m.textContent = text;
+      m.className = ok ? "ok" : "err";
+    }
+
+    // config.json 에서 내 기본 문구 가져오기 (개인 설정 없을 때 보여줄 용도)
+    function loadDefault(name) {
+      return fetch("config.json?t=" + Date.now(), { cache: "no-store" })
+        .then(function (r) { return r.json(); })
+        .then(function (config) {
+          var lines = config[name];
+          if (!lines) {
+            for (var k in config) {
+              if (k !== "기본" && name.indexOf(k) !== -1) { lines = config[k]; break; }
+            }
+          }
+          lines = lines || config["기본"];
+          return lines ? lines.join("\n") : FALLBACK;
+        })
+        .catch(function () { return FALLBACK; });
+    }
+
+    Office.onReady(function () {
+      var rs = Office.context.roamingSettings;
+      var name = "";
+      try { name = Office.context.mailbox.userProfile.displayName || ""; } catch (e) {}
+      var box = document.getElementById("text");
+
+      var saved = rs.get(KEY);
+      if (saved) {
+        box.value = saved;
+      } else {
+        loadDefault(name).then(function (t) { box.value = t; });
+      }
+
+      document.getElementById("save").onclick = function () {
+        var text = box.value.replace(/\r/g, "").replace(/\s+$/, "");
+        if (!text) { show("문구가 비어 있어요.", false); return; }
+        rs.set(KEY, text);
+        rs.saveAsync(function (res) {
+          if (res.status === Office.AsyncResultStatus.Succeeded) show("저장했어요. 다음 메일부터 적용돼요.", true);
+          else show("저장 실패: " + res.error.message, false);
+        });
+      };
+
+      document.getElementById("reset").onclick = function () {
+        rs.remove(KEY);
+        rs.saveAsync(function (res) {
+          if (res.status === Office.AsyncResultStatus.Succeeded) {
+            loadDefault(name).then(function (t) { box.value = t; });
+            show("기본 문구로 되돌렸어요.", true);
+          } else show("실패: " + res.error.message, false);
+        });
+      };
+    });
+  </script>
+</body>
+</html>
