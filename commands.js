@@ -4,7 +4,7 @@
 // (여기는 수정할 필요 없음)
 
 // 사용 횟수 기록용 Apps Script 웹앱 주소 (비워두면 기록 안 함)
-var LOG_URL = "";
+var LOG_URL = "https://script.google.com/macros/s/AKfycbwFoygA6pJ1UScP8zVX_DZVBP8orefsyEfhpU9uGlcixmzxrOvzVPUuVDVTh5X3J1hJwg/exec";
 
 // 사용 횟수 기록 (이름 등 개인정보는 안 보냄, 실패해도 무시)
 function logUse(type) {
