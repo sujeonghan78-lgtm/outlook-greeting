@@ -3,6 +3,18 @@
 // 문구 우선순위: ① 본인이 "인사말 설정"에서 저장한 문구 → ② config.json → ③ 아래 비상용
 // (여기는 수정할 필요 없음)
 
+// 사용 횟수 기록용 Apps Script 웹앱 주소 (비워두면 기록 안 함)
+var LOG_URL = "";
+
+// 사용 횟수 기록 (이름 등 개인정보는 안 보냄, 실패해도 무시)
+function logUse(type) {
+  if (!LOG_URL) return Promise.resolve();
+  var send = fetch(LOG_URL + "?t=" + encodeURIComponent(type), { mode: "no-cors" })
+    .catch(function () {});
+  var timeout = new Promise(function (resolve) { setTimeout(resolve, 2000); });
+  return Promise.race([send, timeout]);
+}
+
 // config.json 을 못 불러왔을 때 쓰는 비상용 문구
 var FALLBACK_LINES = [
   "수신 :",
@@ -38,7 +50,7 @@ function pickLines(config, name) {
   return config["기본"] || FALLBACK_LINES;
 }
 
-function insertGreeting(event) {
+function insertGreeting(event, type) {
   var name = "";
   try { name = Office.context.mailbox.userProfile.displayName || ""; } catch (e) {}
 
@@ -47,7 +59,10 @@ function insertGreeting(event) {
       linesToHtml(lines, name),
       { coercionType: Office.CoercionType.Html },
       function () {
-        if (event && event.completed) event.completed();
+        // 인사말 넣은 뒤에 기록 → 끝
+        logUse(type || "button").then(function () {
+          if (event && event.completed) event.completed();
+        });
       }
     );
   }
@@ -69,7 +84,7 @@ function insertGreeting(event) {
 
 // 새 메일/회신/전달 열릴 때 자동 실행
 function onNewMessageComposeHandler(event) {
-  insertGreeting(event);
+  insertGreeting(event, "auto");
 }
 
 Office.onReady(function () {});
